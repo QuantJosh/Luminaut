@@ -25,7 +25,7 @@ from nautilus_trader.common.actor import Actor
 from nautilus_trader.common.enums import LogColor
 from nautilus_trader.model.data import OrderBookDelta, TradeTick
 from nautilus_trader.model.identifiers import InstrumentId
-from nautilus_trader.model.orderbook import OrderBook
+from nautilus_trader.model.book import OrderBook
 
 
 class FeatureVector:

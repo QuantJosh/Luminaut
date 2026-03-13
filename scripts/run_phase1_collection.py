@@ -13,7 +13,9 @@ import argparse
 import asyncio
 import signal
 import sys
+import logging
 from pathlib import Path
+from typing import Optional
 
 # Add project root to path
 project_root = Path(__file__).parent.parent
@@ -22,16 +24,11 @@ sys.path.insert(0, str(project_root))
 from nautilus_trader.adapters.binance.config import BinanceDataClientConfig
 from nautilus_trader.adapters.binance.factories import BinanceLiveDataClientFactory
 from nautilus_trader.cache.cache import Cache
-from nautilus_trader.common.component import MessageBus
-from nautilus_trader.common.component import Clock
-from nautilus_trader.config import LoggingConfig
+from nautilus_trader.common.component import MessageBus, Clock
+from nautilus_trader.config import LoggingConfig, TradingNodeConfig
 from nautilus_trader.core.datetime import unix_nanos_to_dt
 from nautilus_trader.live.node import TradingNode
-from nautilus_trader.live.node_config import LiveDataEngineConfig
-from nautilus_trader.live.node_config import LiveExecEngineConfig
-from nautilus_trader.live.node_config import TradingNodeConfig
-from nautilus_trader.model.identifiers import InstrumentId
-from nautilus_trader.model.identifiers import Venue
+from nautilus_trader.model.identifiers import InstrumentId, Venue
 
 from luminaut.phase1_data_collection.actors.feature_builder import LuminautFeatureBuilder
 
@@ -62,15 +59,17 @@ class DataCollectionRunner:
         self.node: Optional[TradingNode] = None
         self.shutdown_requested = False
         
-        print(f"=== Luminaut Data Collection ===")
+        print("=" * 40)
+        print("Luminaut Data Collection")
+        print("=" * 40)
         print(f"Instrument: {instrument}")
         print(f"Duration: {duration_minutes} minutes")
-        print(f"=" * 40)
+        print("=" * 40)
     
     def setup_signal_handlers(self):
         """Set up graceful shutdown on Ctrl+C."""
         def signal_handler(sig, frame):
-            print("\n\n🛑 Shutdown requested. Stopping gracefully...")
+            print("\n\n[WARN] Shutdown requested. Stopping gracefully...")
             self.shutdown_requested = True
             if self.node:
                 asyncio.create_task(self.node.stop_async())
@@ -84,7 +83,6 @@ class DataCollectionRunner:
             # Configure logging
             logging_config = LoggingConfig(
                 log_level="INFO",
-                log_file="logs/luminaut_phase1.log",
             )
             
             # Configure Binance data client
@@ -123,11 +121,11 @@ class DataCollectionRunner:
             self.node.add_actor(feature_builder)
             
             # Start the node
-            print(f"🚀 Starting data collection...")
+            print("[INFO] Starting data collection...")
             await self.node.start_async()
             
-            print(f"✅ Connected to Binance. Collecting data...")
-            print(f"⏱️  Will run for {self.duration_minutes} minutes (or until Ctrl+C)")
+            print("[INFO] Connected to Binance. Collecting data...")
+            print(f"[INFO] Will run for {self.duration_minutes} minutes (or until Ctrl+C)")
             
             # Run for specified duration
             duration_seconds = self.duration_minutes * 60
@@ -140,22 +138,22 @@ class DataCollectionRunner:
                 # Print progress every minute
                 if (elapsed + 10) % 60 == 0:
                     minutes_elapsed = (elapsed + 10) // 60
-                    print(f"⏳ {minutes_elapsed}/{self.duration_minutes} minutes elapsed...")
+                    print(f"[INFO] {minutes_elapsed}/{self.duration_minutes} minutes elapsed...")
             
             if not self.shutdown_requested:
-                print(f"\n✅ Collection complete! Ran for {self.duration_minutes} minutes")
+                print(f"\n[INFO] Collection complete! Ran for {self.duration_minutes} minutes")
             
         except Exception as e:
-            print(f"\n❌ Error during data collection: {e}")
+            print(f"\n[ERROR] Error during data collection: {e}")
             import traceback
             traceback.print_exc()
         
         finally:
             # Stop the node
             if self.node:
-                print("🛑 Stopping trading node...")
+                print("[INFO] Stopping trading node...")
                 await self.node.stop_async()
-                print("✅ Shutdown complete")
+                print("[INFO] Shutdown complete")
 
 
 def main():
